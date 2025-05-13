@@ -17,7 +17,7 @@ def execute():
         code_b64 = data.get("code", "")
         code = base64.b64decode(code_b64).decode("utf-8")
 
-        # Подготовка stdout к перехвату вывода print()
+        # Перехват stdout для print()
         old_stdout = sys.stdout
         sys.stdout = io.StringIO()
 
@@ -28,9 +28,9 @@ def execute():
             exec(compiled, {}, local_vars)
         except Exception as e:
             sys.stdout = old_stdout
-            return jsonify({"error": f"Execution error: {str(e)}"})
+            return jsonify({"result": f"Execution error: {str(e)}"})
 
-        # Сохраняем вывод print'ов
+        # Сохраняем вывод print
         printed_output = sys.stdout.getvalue().strip()
         sys.stdout = old_stdout
 
@@ -42,18 +42,20 @@ def execute():
         except:
             pass
 
-        response = {}
-        if printed_output:
-            response["print"] = printed_output
+        # Формируем итоговый ответ
         if result is not None:
-            response["result"] = result
-        if last_expr_result is not None and result != last_expr_result:
-            response["expression_result"] = last_expr_result
+            final_result = result
+        elif last_expr_result is not None:
+            final_result = last_expr_result
+        elif printed_output:
+            final_result = printed_output
+        else:
+            final_result = "No result returned"
 
-        return jsonify(response)
+        return jsonify({"result": final_result})
 
     except Exception as e:
-        return jsonify({"error": f"General error: {str(e)}"})
+        return jsonify({"result": f"General error: {str(e)}"})
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
