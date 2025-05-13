@@ -14,24 +14,39 @@ def home():
 def execute():
     if request.method == 'GET':
         return jsonify({"status": "GET allowed for test"})
-    
+
     try:
         data = request.get_json()
-        code = data.get("code", "")
+        code = data.get("code", "").strip()
         local_vars = {}
 
-        # буфер для перехвата stdout (print)
         output_buffer = io.StringIO()
-        
+        last_expr_result = None
+
         with contextlib.redirect_stdout(output_buffer):
-            exec(code, {}, local_vars)
-        
+            # Попробуем отдельно вычислить последнюю строку как выражение
+            lines = code.split('\n')
+            *body_lines, last_line = lines
+
+            body_code = '\n'.join(body_lines).strip()
+            if body_code:
+                exec(body_code, {}, local_vars)
+
+            # Попробуем вычислить последнюю строку
+            try:
+                last_expr_result = eval(last_line, {}, local_vars)
+            except:
+                # Если не выражение — выполнить как код
+                exec(last_line, {}, local_vars)
+
         printed_output = output_buffer.getvalue().strip()
         result = local_vars.get("result", None)
 
         response = {}
         if result is not None:
             response["result"] = result
+        if last_expr_result is not None:
+            response["expression_result"] = last_expr_result
         if printed_output:
             response["print"] = printed_output
         if not response:
